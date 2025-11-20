@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { FileText, X, Download, Printer, BookOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -48,7 +49,7 @@ export function ResearchPaper({ content }: ResearchPaperProps) {
             </div>
 
             {/* Full View Overlay */}
-            {isFullView && (
+            {isFullView && createPortal(
                 <div className="fixed inset-0 z-[100] bg-[#e8e8e8]/95 backdrop-blur-md animate-in fade-in duration-200 flex items-center justify-center p-0 sm:p-4 md:p-8 overflow-hidden">
                     <div className="w-full max-w-[1000px] h-full bg-[#fdfdfd] text-black shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 rounded-sm sm:border border-gray-300">
                         {/* Clean Header Bar */}
@@ -160,7 +161,8 @@ export function ResearchPaper({ content }: ResearchPaperProps) {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );

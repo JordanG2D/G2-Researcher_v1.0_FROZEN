@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import threading
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Literal
@@ -282,12 +283,18 @@ def _run_and_capture(
 
     started_at = datetime.now(timezone.utc)
 
+    # Enable structured event emission in the child process so the frontend
+    # can consume ::EVENT::-prefixed messages.
+    env = dict(os.environ)
+    env["AI_RESEARCHER_ENABLE_EVENTS"] = "1"
+
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
+        env=env,
     )
 
     stdout_chunks: List[str] = []
@@ -364,12 +371,18 @@ def _stream_subprocess(
 
     started_at = datetime.now(timezone.utc)
 
+    # Enable structured event emission in the child process so the frontend
+    # can consume ::EVENT::-prefixed messages.
+    env = dict(os.environ)
+    env["AI_RESEARCHER_ENABLE_EVENTS"] = "1"
+
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
+        env=env,
     )
 
     # Queue is used to multiplex stdout and stderr into a single ordered stream.

@@ -35,25 +35,27 @@ export function Console({ logs, className }: ConsoleProps) {
             Waiting for process output...
           </div>
         )}
-        {logs.map((log, i) => (
-          <div key={i} className="whitespace-pre-wrap break-all">
-            <span className="text-muted-foreground select-none mr-3">
-              {new Date(log.timestamp).toLocaleTimeString([], {
-                hour12: false,
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })}
-            </span>
-            <span
-              className={cn(
-                log.stream === "stderr" ? "text-red-400" : "text-zinc-300"
-              )}
-            >
-              {log.plain || log.raw}
-            </span>
-          </div>
-        ))}
+        {logs
+          .filter((log) => !((log.plain ?? log.raw ?? "").includes("::EVENT::")))
+          .map((log, i) => (
+            <div key={i} className="whitespace-pre-wrap break-all">
+              <span className="text-muted-foreground select-none mr-3">
+                {new Date(log.timestamp).toLocaleTimeString([], {
+                  hour12: false,
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </span>
+              <span
+                className={cn(
+                  log.stream === "stderr" ? "text-red-400" : "text-zinc-300"
+                )}
+              >
+                {log.plain || log.raw}
+              </span>
+            </div>
+          ))}
         <div ref={bottomRef} />
       </div>
     </div>

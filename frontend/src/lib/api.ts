@@ -15,6 +15,10 @@ export interface OrchestratorExperimentRequest {
     test_mode?: boolean;
 }
 
+export type ExperimentRequest =
+    | SingleExperimentRequest
+    | OrchestratorExperimentRequest;
+
 export interface LogEvent {
     type: "line" | "summary";
     stream?: "stdout" | "stderr";

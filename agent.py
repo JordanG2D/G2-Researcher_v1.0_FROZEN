@@ -19,6 +19,11 @@ _selected_gpu: Optional[str] = None  # User-selected GPU for this run
 
 def emit_event(event_type: str, data: dict) -> None:
     """Emit a structured event for the frontend."""
+    # Only emit structured events when explicitly enabled (e.g. from the web API).
+    # This keeps the CLI output clean while still allowing rich UIs to subscribe.
+    if not os.environ.get("AI_RESEARCHER_ENABLE_EVENTS"):
+        return
+
     import json
     payload = {
         "type": event_type,
@@ -161,6 +166,21 @@ def execute_in_sandbox(code: str):
                         print(chunk, end="", file=sys.stderr, flush=True)
                     else:
                         print(chunk, end="", flush=True)
+
+                    # Also emit a structured streaming event for the web UI so it can
+                    # render progress bars and logs as they happen, without waiting
+                    # for the entire sandbox run to complete.
+                    try:
+                        emit_event(
+                            "AGENT_STREAM",
+                            {
+                                "stream": "stderr" if is_stderr else "stdout",
+                                "chunk": chunk,
+                            },
+                        )
+                    except Exception as e:
+                        # Structured events are best-effort only; don't break execution.
+                        log_step("WARNING", f"Failed to emit AGENT_STREAM event: {e}")
             except Exception as e:
                 # Don't crash the whole tool if streaming fails; just log.
                 stream_name = "stderr" if is_stderr else "stdout"

@@ -47,6 +47,30 @@ export function NotebookCell({ step }: NotebookCellProps) {
     }
 
     if (type === "result") {
+        // Handle carriage returns (\r) for progress bars (like tqdm).
+        // We want to simulate the terminal behavior where \r moves the cursor 
+        // to the start of the line, allowing subsequent text to overwrite.
+        // We split by \r and take the last segment for the current line context if it's a pure overwrite,
+        // but \r can be mixed with \n.
+        // A simple approximation is: split by \n, and for each line, process \r.
+        
+        const processCarriageReturns = (text: string) => {
+            const lines = text.split('\n');
+            const processedLines = lines.map(line => {
+                // If line has \r, usually we just want the text AFTER the last \r
+                // unless that \r is followed by nothing? 
+                // Standard terminal: "Loading... 10%\rLoading... 20%" -> "Loading... 20%"
+                // "Item 1\rItem 2" -> "Item 2"
+                
+                if (line.includes('\r')) {
+                    const parts = line.split('\r');
+                    return parts[parts.length - 1];
+                }
+                return line;
+            });
+            return processedLines.join('\n');
+        };
+
         return (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                 <div className="flex items-center gap-2 mb-2">
@@ -55,7 +79,7 @@ export function NotebookCell({ step }: NotebookCellProps) {
                 </div>
                 <div className="pl-3 border-l border-[#1d1d1f] ml-0.5">
                     <pre className="text-[10px] font-mono text-[#86868b] overflow-x-auto custom-scrollbar whitespace-pre-wrap">
-                        {content}
+                        {processCarriageReturns(content)}
                     </pre>
                 </div>
             </div>

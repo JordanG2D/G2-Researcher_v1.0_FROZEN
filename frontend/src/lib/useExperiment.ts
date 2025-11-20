@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from "react";
-import { streamExperiment, LogEvent, ExperimentRequest } from "./api";
+import { useState, useRef } from "react";
+import { streamExperiment, LogEvent } from "./api";
 
 export type StepType = "thought" | "code" | "result" | "text";
 
@@ -75,6 +75,42 @@ export function useExperiment() {
                     ...current,
                     steps: [...current.steps, newStep],
                 },
+            };
+            agentsRef.current = next;
+            return next;
+        });
+    };
+
+    const appendToLatestAgentStep = (id: string, type: StepType, chunk: string) => {
+        setAgents((prev) => {
+            const current = prev[id];
+            if (!current || current.steps.length === 0) return prev;
+
+            const steps = [...current.steps];
+            const lastStep = steps[steps.length - 1];
+
+            // If the last step matches the type, append to it.
+            // Otherwise, we might need to create a new one, but for 'result' streaming
+            // we generally expect a result block to exist (created by TOOL_CALL or just implicitly).
+            // If it doesn't exist or type doesn't match, we'll create a new one.
+            if (lastStep.type === type) {
+                steps[steps.length - 1] = {
+                    ...lastStep,
+                    content: lastStep.content + chunk
+                };
+            } else {
+                // Fallback: create new step if types mismatch
+                steps.push({
+                    id: Math.random().toString(36).substring(7),
+                    type,
+                    content: chunk,
+                    timestamp: Date.now(),
+                });
+            }
+
+            const next = {
+                ...prev,
+                [id]: { ...current, steps }
             };
             agentsRef.current = next;
             return next;
@@ -216,11 +252,47 @@ export function useExperiment() {
 
             case "AGENT_TOOL_RESULT":
                 if (inferredAgentId) {
-                    addAgentStep(inferredAgentId, {
-                        type: "result",
-                        content: data.result,
-                        metadata: { tool: data.tool },
+                    // Update the latest step if it's a result block (from streaming),
+                    // otherwise create a new one.
+                    setAgents((prev) => {
+                        const current = prev[inferredAgentId];
+                        if (!current) return prev;
+
+                        const steps = [...current.steps];
+                        const lastStep = steps[steps.length - 1];
+
+                        if (lastStep && lastStep.type === "result") {
+                            // Update existing result block with the final full content
+                            steps[steps.length - 1] = {
+                                ...lastStep,
+                                content: data.result,
+                                metadata: { ...lastStep.metadata, tool: data.tool }
+                            };
+                        } else {
+                            // Create new result block
+                            steps.push({
+                                id: Math.random().toString(36).substring(7),
+                                type: "result",
+                                content: data.result,
+                                metadata: { tool: data.tool },
+                                timestamp: Date.now(),
+                            });
+                        }
+
+                        return {
+                            ...prev,
+                            [inferredAgentId]: { ...current, steps }
+                        };
                     });
+                }
+                break;
+
+            case "AGENT_STREAM":
+                if (inferredAgentId && typeof data?.chunk === "string") {
+                    // Stream incremental sandbox output into the latest result cell.
+                    // NotebookCell already handles carriage returns (\r) to render
+                    // tqdm-style progress bars cleanly.
+                    appendToLatestAgentStep(inferredAgentId, "result", data.chunk);
                 }
                 break;
 

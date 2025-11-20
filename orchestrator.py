@@ -19,6 +19,11 @@ _experiment_counter: int = 0
 
 def emit_event(event_type: str, data: Dict[str, Any]) -> None:
     """Emit a structured event for the frontend."""
+    # Only emit structured events when explicitly enabled (e.g. via the web API).
+    # This keeps pure CLI runs clean.
+    if not os.environ.get("AI_RESEARCHER_ENABLE_EVENTS"):
+        return
+
     payload = {
         "type": event_type,
         "timestamp": 0,  # Frontend will timestamp
