@@ -176,7 +176,7 @@ Termination:
 """
 
 
-def run_researcher(hypothesis: str, gpu: Optional[str] = None) -> Dict[str, Any]:
+def run_researcher(hypothesis: str, gpu: Optional[str] = None, test_mode: bool = False) -> Dict[str, Any]:
     """
     Tool wrapper that launches a single-researcher agent experiment in a separate process.
 
@@ -191,6 +191,7 @@ def run_researcher(hypothesis: str, gpu: Optional[str] = None) -> Dict[str, Any]
         hypothesis: The experimental hypothesis to pass to the single agent.
         gpu: Optional GPU string ("T4", "A10G", "A100", "any", etc.).
              If None, uses the orchestrator's default GPU (which may be CPU-only).
+        test_mode: If True, runs the agent in test mode (mock data).
 
     Returns:
         A JSON-serializable dict:
@@ -243,6 +244,8 @@ def run_researcher(hypothesis: str, gpu: Optional[str] = None) -> Dict[str, Any]
     ]
     if assigned_gpu:
         cmd.extend(["--gpu", assigned_gpu])
+    if test_mode:
+        cmd.append("--test-mode")
 
     print_status(
         f"[Experiment {experiment_id}] Spawning single-agent process with command: "
@@ -332,6 +335,7 @@ def run_orchestrator_loop(
     max_rounds: int = 3,
     default_gpu: Optional[str] = None,
     max_parallel_experiments: int = 2,
+    test_mode: bool = False,
 ) -> None:
     """
     Main orchestrator loop using Gemini 3 Pro with thinking + manual tool calling.
@@ -343,6 +347,7 @@ def run_orchestrator_loop(
         default_gpu: Default GPU string for experiments (or None for CPU-only).
         max_parallel_experiments: Maximum number of experiments to run in parallel
                                   in a single wave of tool calls.
+        test_mode: If True, runs in test mode with mock data.
     """
     global _default_gpu
     _default_gpu = default_gpu
@@ -366,6 +371,82 @@ def run_orchestrator_loop(
         f"Maximum parallel experiments per wave: {max_parallel_experiments}",
         "info",
     )
+    
+    if test_mode:
+        print_status("TEST MODE ENABLED: Using mock data and skipping LLM calls.", "bold yellow")
+        import time
+        
+        # Mock Orchestrator Loop
+        mock_hypotheses = [
+            f"Hypothesis A: {research_task} can be solved by method X.",
+            f"Hypothesis B: {research_task} requires method Y optimization.",
+            f"Hypothesis C: {research_task} is sensitive to hyperparameter Z."
+        ]
+        
+        # Step 1: Initial Thinking
+        thought = (
+            "I need to decompose the research task into testable hypotheses.\n"
+            "Based on the request, I will investigate three main directions:\n"
+            "1. Method X applicability\n"
+            "2. Method Y optimization\n"
+            "3. Hyperparameter Z sensitivity\n"
+            "I will launch agents to test these concurrently."
+        )
+        print_panel(thought, "Orchestrator Thinking", "thought")
+        log_step("ORCH_THOUGHT", thought)
+        emit_event("ORCH_THOUGHT", {"thought": thought})
+        time.sleep(2)
+        
+        # Step 2: Launch Experiments
+        print_status(f"Launching {len(mock_hypotheses)} experiment(s) with up to {max_parallel_experiments} in parallel...", "info")
+        
+        with ThreadPoolExecutor(max_workers=max_parallel_experiments) as executor:
+            futures = []
+            for i, hyp in enumerate(mock_hypotheses):
+                futures.append(executor.submit(run_researcher, hyp, default_gpu, True))
+            
+            for future in futures:
+                result = future.result()
+                print_panel(
+                    json.dumps(result, indent=2, ensure_ascii=False),
+                    "Orchestrator Tool Result",
+                    "result",
+                )
+                log_step("ORCH_TOOL_RESULT", "run_researcher completed")
+        
+        # Step 3: Synthesis Thinking
+        thought = (
+            "The experiments have completed.\n"
+            "Agent A reported success with Method X.\n"
+            "Agent B found Method Y to be unstable.\n"
+            "Agent C confirmed sensitivity to Z.\n"
+            "I have sufficient evidence to write the final paper."
+        )
+        print_panel(thought, "Orchestrator Thinking", "thought")
+        log_step("ORCH_THOUGHT", thought)
+        emit_event("ORCH_THOUGHT", {"thought": thought})
+        time.sleep(2)
+        
+        # Step 4: Final Paper
+        final_paper = (
+            "# Research Report: " + research_task + "\n\n"
+            "## Abstract\n"
+            "We investigated " + research_task + " using a multi-agent approach. "
+            "Our findings suggest Method X is superior.\n\n"
+            "## Introduction\n"
+            "This is a mock paper generated in Test Mode.\n\n"
+            "## Results\n"
+            "- Method X: 95% accuracy\n"
+            "- Method Y: Unstable convergence\n\n"
+            "## Conclusion\n"
+            "Method X is recommended.\n\n"
+            "[DONE]"
+        )
+        print_panel(final_paper, "Final Paper", "bold green")
+        log_step("ORCH_FINAL", "Final paper generated.")
+        emit_event("ORCH_PAPER", {"content": final_paper})
+        return
+
     print_status("Gemini thinking: HIGH (thought summaries visible)", "info")
 
     client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
@@ -608,6 +689,7 @@ def run_orchestrator_loop(
         final_text = final_response.text or ""
         print_panel(final_text, "Final Paper", "bold green")
         log_step("ORCH_FINAL", "Final paper generated.")
+        emit_event("ORCH_PAPER", {"content": final_text})
     except Exception as e:
         print_status(f"Failed to generate final paper: {e}", "error")
         logger.error(f"Failed to generate final paper: {e}")

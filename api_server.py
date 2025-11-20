@@ -62,6 +62,10 @@ class SingleExperimentRequest(BaseModel):
         ),
         examples=["T4"],
     )
+    test_mode: bool = Field(
+        False,
+        description="If true, runs in test mode with mock data (no LLM/GPU usage).",
+    )
 
 
 class OrchestratorExperimentRequest(BaseModel):
@@ -119,6 +123,10 @@ class OrchestratorExperimentRequest(BaseModel):
             "Maximum number of experiments to run in parallel in a single wave. "
             "This is passed as --max-parallel."
         ),
+    )
+    test_mode: bool = Field(
+        False,
+        description="If true, runs in test mode with mock data (no LLM/GPU usage).",
     )
 
 
@@ -229,6 +237,8 @@ def _build_single_command(req: SingleExperimentRequest) -> List[str]:
     ]
     if req.gpu:
         cmd.extend(["--gpu", req.gpu])
+    if req.test_mode:
+        cmd.append("--test-mode")
     return cmd
 
 
@@ -251,6 +261,8 @@ def _build_orchestrator_command(req: OrchestratorExperimentRequest) -> List[str]
     ]
     if req.gpu:
         cmd.extend(["--gpu", req.gpu])
+    if req.test_mode:
+        cmd.append("--test-mode")
     return cmd
 
 
@@ -426,6 +438,27 @@ def health_check() -> Dict[str, Any]:
         "main_py": str(MAIN_PATH),
         "main_py_exists": exists,
     }
+
+
+@app.get("/api/state", summary="Get global system state")
+def get_state() -> Dict[str, Any]:
+    """
+    Return the current global state of the orchestrator.
+    This is primarily to support legacy clients or status monitors.
+    """
+    # Import here to avoid circular imports if orchestrator imports api_server
+    try:
+        from orchestrator import _experiment_counter, _default_gpu
+        return {
+            "status": "active",
+            "experiments_run": _experiment_counter,
+            "default_gpu": _default_gpu,
+        }
+    except ImportError:
+        return {
+            "status": "active",
+            "info": "Orchestrator module not loaded",
+        }
 
 
 @app.post(

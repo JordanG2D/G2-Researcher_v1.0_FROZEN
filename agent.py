@@ -222,13 +222,85 @@ Working loop:
 """
 
 
-def run_experiment_loop(hypothesis: str):
+def run_experiment_loop(hypothesis: str, test_mode: bool = False):
     """Main agent loop using Gemini 3 Pro with thinking + manual tool calling."""
     gpu_hint = _selected_gpu or "CPU"
 
     print_panel(f"Hypothesis: {hypothesis}", "Starting Experiment", "bold green")
     log_step("START", f"Hypothesis: {hypothesis}")
     print_status(f"Sandbox GPU request: {gpu_hint}", "info")
+    
+    if test_mode:
+        print_status("TEST MODE ENABLED: Using mock data and skipping LLM calls.", "bold yellow")
+        import time
+        
+        # Mock Agent Loop
+        
+        # Step 1: Thinking
+        thought = (
+            "I need to verify this hypothesis using a Python script.\n"
+            "I will create a synthetic dataset and run a simple regression model.\n"
+            "Then I will analyze the coefficients to check the relationship."
+        )
+        print_panel(thought, "Agent Thinking", "thought")
+        log_step("THOUGHT", thought)
+        emit_event("AGENT_THOUGHT", {"thought": thought})
+        time.sleep(1.5)
+        
+        # Step 2: Tool Call
+        code = (
+            "import numpy as np\n"
+            "import pandas as pd\n"
+            "print('Generating synthetic data...')\n"
+            "data = pd.DataFrame({'x': np.random.rand(100), 'y': np.random.rand(100)})\n"
+            "print('Data shape:', data.shape)\n"
+            "print('Correlation:', data.corr().iloc[0,1])"
+        )
+        fn_name = "execute_in_sandbox"
+        fn_args = {"code": code}
+        
+        print_panel(f"{fn_name}({fn_args})", "Tool Call", "code")
+        log_step("TOOL_CALL", f"{fn_name}({fn_args})")
+        emit_event("AGENT_TOOL", {"tool": fn_name, "args": fn_args})
+        time.sleep(1)
+        
+        # Step 3: Tool Result
+        result = (
+            "Exit Code: 0\n"
+            "STDOUT:\n"
+            "Generating synthetic data...\n"
+            "Data shape: (100, 2)\n"
+            "Correlation: 0.042\n"
+            "STDERR:\n"
+        )
+        print_panel(result, "Tool Result", "result")
+        log_step("TOOL_RESULT", "Executed")
+        emit_event("AGENT_TOOL_RESULT", {"tool": fn_name, "result": result})
+        time.sleep(1.5)
+        
+        # Step 4: Analysis
+        message = (
+            "The correlation is very low, which suggests no strong linear relationship.\n"
+            "However, since this is mock data, I will conclude based on the hypothesis."
+        )
+        print_panel(message, "Agent Message", "info")
+        log_step("MODEL", message)
+        time.sleep(1)
+        
+        # Step 5: Final Report
+        print_status("Generating Final Report...", "bold green")
+        final_report = (
+            "## Experiment Report\n\n"
+            "We tested the hypothesis: " + hypothesis + "\n\n"
+            "### Methodology\n"
+            "We ran a simulation using synthetic data.\n\n"
+            "### Conclusion\n"
+            "The hypothesis was tested in a mock environment.\n"
+            "[DONE]"
+        )
+        print_panel(final_report, "Final Report", "bold green")
+        return
+
     print_status("Gemini thinking: HIGH (thought summaries visible)", "info")
 
     client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
@@ -349,6 +421,7 @@ def run_experiment_loop(hypothesis: str):
 
             print_panel(result, "Tool Result", "result")
             log_step("TOOL_RESULT", "Executed")
+            emit_event("AGENT_TOOL_RESULT", {"tool": fn_name, "result": result})
 
             # Feed the tool response back as a TOOL message with a functionResponse part.
             history.append(

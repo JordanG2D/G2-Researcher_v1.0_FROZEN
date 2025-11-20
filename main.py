@@ -59,6 +59,11 @@ def main():
             "in a single wave of tool calls."
         ),
     )
+    parser.add_argument(
+        "--test-mode",
+        action="store_true",
+        help="Run in test mode with mock data (no LLM/GPU usage).",
+    )
 
     args = parser.parse_args()
 
@@ -71,7 +76,7 @@ def main():
             import agent as agent_module
 
             agent_module._selected_gpu = args.gpu
-            run_experiment_loop(args.task)
+            run_experiment_loop(args.task, test_mode=args.test_mode)
         except KeyboardInterrupt:
             print_status("\nExperiment interrupted by user.", "bold red")
             sys.exit(0)
@@ -91,6 +96,7 @@ def main():
                 max_rounds=args.max_rounds,
                 default_gpu=args.gpu,
                 max_parallel_experiments=args.max_parallel,
+                test_mode=args.test_mode,
             )
         except KeyboardInterrupt:
             print_status("\nOrchestrated experiment interrupted by user.", "bold red")
