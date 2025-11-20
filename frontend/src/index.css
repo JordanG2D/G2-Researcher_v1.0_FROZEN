@@ -42,7 +42,7 @@
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar Global (Dark) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -58,4 +58,51 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/50;
+}
+
+/* Light Theme Scrollbar override */
+.custom-scrollbar-light::-webkit-scrollbar-thumb {
+  @apply bg-gray-300;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+/* Print Styles */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-paper-content,
+  #printable-paper-content * {
+    visibility: visible;
+  }
+
+  #printable-paper-content {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: auto;
+    margin: 0;
+    padding: 1in;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* Hide footer in print */
+  .no-print {
+    display: none !important;
+  }
 }

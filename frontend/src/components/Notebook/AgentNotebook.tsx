@@ -18,30 +18,28 @@ export function AgentNotebook({ agent }: AgentNotebookProps) {
     }, [agent.steps.length]);
 
     return (
-        <div className="flex flex-col h-full bg-card/30 backdrop-blur-sm border border-border/40 rounded-xl overflow-hidden shadow-2xl shadow-black/20 transition-all hover:border-border/60 group">
-            {/* Minimal Header */}
-            <div className="flex-shrink-0 px-6 py-4 border-b border-border/20 bg-card/20 flex items-center justify-between">
+        <div className="flex flex-col h-full border border-[#1d1d1f] bg-black/50 backdrop-blur-sm transition-colors duration-500">
+            {/* Header - Ultra Minimal */}
+            <div className="flex-shrink-0 h-12 px-4 border-b border-[#1d1d1f] flex items-center justify-between bg-black/50">
                 <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-white/20 group-hover:bg-white/40 transition-colors" />
-                    <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground/90 tracking-tight">
-                            Researcher {agent.id}
-                        </span>
-                        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
-                            {agent.gpu || "CPU"}
-                        </span>
-                    </div>
+                    <span className="text-[10px] font-medium text-[#f5f5f7] tracking-widest uppercase">
+                        Agent {agent.id}
+                    </span>
+                    <div className="w-[1px] h-3 bg-[#1d1d1f]" />
+                    <span className="text-[10px] font-medium text-[#6e6e73] uppercase tracking-widest">
+                        {agent.gpu || "CPU"}
+                    </span>
                 </div>
                 <StatusBadge status={agent.status} />
             </div>
 
-            {/* Hypothesis / Context */}
+            {/* Hypothesis - Clean & Typography focused */}
             {agent.hypothesis && (
-                <div className="flex-shrink-0 px-6 py-3 bg-muted/5 border-b border-border/20">
-                    <div className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-widest mb-1">
-                        Current Hypothesis
+                <div className="flex-shrink-0 p-4 border-b border-[#1d1d1f] bg-black">
+                    <div className="text-[10px] font-medium text-[#424245] uppercase tracking-widest mb-2">
+                        Objective
                     </div>
-                    <div className="text-xs text-muted-foreground/80 font-sans leading-relaxed line-clamp-2">
+                    <div className="text-xs text-[#86868b] font-light leading-relaxed line-clamp-2">
                         {agent.hypothesis}
                     </div>
                 </div>
@@ -50,15 +48,13 @@ export function AgentNotebook({ agent }: AgentNotebookProps) {
             {/* Notebook Content */}
             <div 
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-6 custom-scrollbar scroll-smooth"
+                className="flex-1 overflow-y-auto p-4 custom-scrollbar scroll-smooth"
             >
-                <div className="space-y-2">
+                <div className="space-y-8">
                     {agent.steps.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground/20 space-y-2 min-h-[200px]">
-                            <div className="w-8 h-8 rounded-full border border-current flex items-center justify-center">
-                                <span className="text-xs">AG</span>
-                            </div>
-                            <span className="text-xs font-medium uppercase tracking-widest">Awaiting Tasks</span>
+                        <div className="h-full flex flex-col items-center justify-center min-h-[200px]">
+                            <div className="w-1 h-1 rounded-full bg-[#333] mb-3" />
+                            <span className="text-[10px] font-medium text-[#424245] uppercase tracking-widest">Initializing Environment</span>
                         </div>
                     ) : (
                         agent.steps.map((step) => (

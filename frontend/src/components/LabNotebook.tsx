@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, StopCircle, Sparkles, LayoutGrid, Terminal, Activity, FileText } from "lucide-react";
+import { Play, StopCircle, Plus } from "lucide-react";
 import { useExperiment } from "@/lib/useExperiment";
 import { AgentNotebook } from "./Notebook/AgentNotebook";
+import { ResearchPaper } from "./Notebook/ResearchPaper";
 import { cn } from "@/lib/utils";
-import ReactMarkdown from "react-markdown";
 
 export function LabNotebook() {
-  const { isRunning, agents, orchestrator, error, startExperiment } =
-    useExperiment();
+  const { isRunning, agents, orchestrator, startExperiment } = useExperiment();
   const [task, setTask] = useState("");
   const [mode, setMode] = useState<"single" | "orchestrator">("orchestrator");
   const [testMode, setTestMode] = useState(false);
@@ -20,13 +19,20 @@ export function LabNotebook() {
     const prevLength = prevTimelineLengthRef.current;
 
     if (currentLength > prevLength) {
-        // New item added
-        const lastItem = orchestrator.timeline[currentLength - 1];
+      const lastItem = orchestrator.timeline[currentLength - 1];
+      if (lastItem.type === "agents" || lastItem.type === "paper" || currentLength === 1) {
+        // Scroll slightly above the new element to keep context
+        // We do this by scrolling to the bottom ref, but with 'start' block alignment if possible,
+        // or just letting the padding handle it.
+        // Actually, let's scroll to the *element itself* if we could, but since we use bottomRef,
+        // let's just scroll smoothly to it. 
+        // The user said it "goes a little too far", implying it might be scrolling past the top of the new content.
+        // Or maybe it scrolls so the bottom is at the bottom of the screen?
+        // "scrollIntoView" aligns the element to the top or bottom. 
         
-        // Scroll if it's a new agents group or paper, or if it's the very first thought
-        if (lastItem.type === "agents" || lastItem.type === "paper" || currentLength === 1) {
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-        }
+        // Let's try aligning the bottomRef to the 'end' of the view, but give it some breathing room.
+        bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
     }
     
     prevTimelineLengthRef.current = currentLength;
@@ -36,7 +42,7 @@ export function LabNotebook() {
     if (!task.trim()) return;
     startExperiment(mode, {
       task,
-      gpu: "any", // Default to any GPU
+      gpu: "any",
       num_agents: 3,
       max_rounds: 3,
       max_parallel: 2,
@@ -45,188 +51,146 @@ export function LabNotebook() {
   };
 
   return (
-    <div className="flex-1 h-screen overflow-hidden flex flex-col bg-background font-sans selection:bg-purple-500/20">
-      {/* Header */}
-      <header className="h-14 border-b border-border/40 flex items-center justify-between px-6 bg-card/50 backdrop-blur-sm z-10">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground tracking-tight">Research Protocol</span>
-          <span className="text-border">/</span>
-          <span className="text-muted-foreground">
-            {task || "Untitled Experiment"}
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
-            <Activity className="w-3.5 h-3.5" />
-            <span>System Ready</span>
-          </div>
-        </div>
-      </header>
+    <div className="flex-1 h-screen overflow-hidden flex flex-col bg-black font-sans text-[#f5f5f7] selection:bg-[#333] selection:text-white">
+      
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        
+        {/* Scrollable Timeline */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="max-w-5xl mx-auto py-24 px-8 space-y-32">
+                
+                {/* Initial Input State (Only visible when timeline is empty) */}
+                {orchestrator.timeline.length === 0 && (
+                    <div className="min-h-[60vh] flex flex-col justify-center items-center space-y-12 animate-in fade-in duration-1000">
+                        <div className="space-y-6 text-center max-w-lg">
+                            <h1 className="text-4xl md:text-5xl font-light tracking-tight text-white">
+                                Research Objective
+                            </h1>
+                            <p className="text-lg text-[#86868b] font-light leading-relaxed">
+                                Describe your scientific query. The orchestrator will decompose it into hypotheses and launch autonomous agents to investigate.
+                            </p>
+                        </div>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-hidden flex">
-        {/* Left Panel: Input & Config */}
-        <div className="w-80 flex-shrink-0 p-6 flex flex-col gap-6 overflow-y-auto border-r border-border/40 bg-card/20">
-          <div className="space-y-4">
-            <div>
-              <h1 className="text-lg font-medium tracking-tight mb-2 text-foreground">
-                Research Objective
-              </h1>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                Define the hypothesis or research question to investigate.
-              </p>
-            </div>
-
-            <div className="relative group">
-              <textarea
-                value={task}
-                onChange={(e) => setTask(e.target.value)}
-                disabled={isRunning}
-                placeholder="e.g., Investigate the scaling laws of test-time compute on reasoning tasks..."
-                className="w-full h-40 bg-muted/20 border border-border/40 rounded-xl p-4 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-purple-500/20 focus:border-purple-500/20 transition-all placeholder:text-muted-foreground/30 font-medium leading-relaxed"
-              />
-              <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <button
-                  onClick={() => setTestMode(!testMode)}
-                  disabled={isRunning}
-                  className={cn(
-                    "px-2 py-1 rounded-lg text-[10px] font-medium transition-all backdrop-blur-sm border",
-                    testMode
-                      ? "bg-amber-500/10 border-amber-500/20 text-amber-500"
-                      : "bg-black/40 border-white/10 text-muted-foreground hover:bg-black/60"
-                  )}
-                >
-                  {testMode ? "TEST MODE" : "REAL MODE"}
-                </button>
-                <select
-                  value={mode}
-                  onChange={(e) =>
-                    setMode(e.target.value as "single" | "orchestrator")
-                  }
-                  disabled={isRunning}
-                  className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-muted-foreground focus:outline-none backdrop-blur-sm hover:bg-black/60 transition-colors"
-                >
-                  <option value="single">Single Agent</option>
-                  <option value="orchestrator">Orchestrator Swarm</option>
-                </select>
-                <button
-                  onClick={handleStart}
-                  disabled={isRunning || !task.trim()}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all backdrop-blur-sm",
-                    isRunning
-                      ? "bg-muted text-muted-foreground cursor-not-allowed"
-                      : "bg-white text-black hover:bg-white/90 shadow-[0_0_15px_rgba(255,255,255,0.1)]"
-                  )}
-                >
-                  {isRunning ? (
-                    <>
-                      <StopCircle className="w-3 h-3" />
-                      Running...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-3 h-3" />
-                      Start
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          {error && (
-            <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10 text-red-400 text-xs leading-relaxed">
-              Error: {error}
-            </div>
-          )}
-        </div>
-
-        {/* Right Panel: Visual Notebook Area */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-black/20 relative">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-            
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                <div className="max-w-7xl mx-auto space-y-8 pb-20">
-                    
-                    {/* Timeline Rendering */}
-                    {orchestrator.timeline.map((item, index) => {
-                        if (item.type === "thought") {
-                            return (
-                                <div key={index} className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-medium text-purple-400/80 mb-3 px-1">
-                                        <Sparkles className="w-3 h-3" />
-                                        Principal Investigator
-                                    </div>
-                                    <div className="bg-card/40 border border-purple-500/10 rounded-2xl p-6 backdrop-blur-md shadow-2xl shadow-purple-900/5 relative overflow-hidden group">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent opacity-50" />
-                                        <div className="relative flex gap-4">
-                                            <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-purple-400 shadow-[0_0_10px_rgba(192,132,252,0.5)] flex-shrink-0" />
-                                            <div className="text-sm text-muted-foreground/80 leading-relaxed font-sans whitespace-pre-wrap">
-                                                {item.content}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        } else if (item.type === "agents") {
-                            return (
-                                <div key={index} className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-medium text-blue-400/80 px-1">
-                                        <LayoutGrid className="w-3 h-3" />
-                                        Active Researchers
-                                    </div>
-                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                        {item.agentIds.map((agentId) => {
-                                            const agent = agents[agentId];
-                                            if (!agent) return null;
-                                            return (
-                                                <div key={agentId} className="h-[600px]">
-                                                    <AgentNotebook agent={agent} />
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            );
-                        } else if (item.type === "paper") {
-                            return (
-                                <div key={index} className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-medium text-green-400/80 mb-3 px-1">
-                                        <FileText className="w-3 h-3" />
-                                        Final Research Report
-                                    </div>
-                                    <div className="bg-card/40 border border-green-500/10 rounded-2xl p-8 backdrop-blur-md shadow-2xl shadow-green-900/5 relative overflow-hidden">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-transparent opacity-50" />
-                                        <div className="relative prose prose-invert prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-black/40 prose-pre:border prose-pre:border-white/10">
-                                            <ReactMarkdown>{item.content}</ReactMarkdown>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        }
-                        return null;
-                    })}
-
-                    {/* Empty State */}
-                    {!isRunning && orchestrator.timeline.length === 0 && (
-                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground/20 space-y-6 mt-32">
-                            <div className="h-24 w-24 rounded-full bg-muted/5 flex items-center justify-center border border-white/5">
-                                <Terminal className="h-10 w-10" />
+                        <div className="w-full max-w-xl space-y-8">
+                            <div className="relative group">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-[#333] to-[#1d1d1f] rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                                <textarea
+                                    value={task}
+                                    onChange={(e) => setTask(e.target.value)}
+                                    disabled={isRunning}
+                                    placeholder="e.g., Investigate the scaling laws of sparse attention mechanisms..."
+                                    className="relative w-full h-32 bg-black border border-[#333] rounded-xl p-6 text-lg font-light text-white placeholder:text-[#333] focus:ring-0 focus:border-[#666] focus:outline-none resize-none leading-relaxed transition-all duration-300"
+                                />
                             </div>
-                            <div className="text-center space-y-2">
-                                <p className="text-sm font-medium text-foreground/40">Ready to start research</p>
-                                <p className="text-xs text-muted-foreground/30">Configure your objective in the sidebar</p>
+
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={() => setTestMode(!testMode)}
+                                        className={cn(
+                                            "text-[10px] font-medium px-3 py-1.5 rounded-full transition-all duration-300 border border-transparent",
+                                            testMode 
+                                                ? "bg-white text-black border-white" 
+                                                : "bg-[#1d1d1f] text-[#86868b] hover:text-white border-[#333]"
+                                        )}
+                                    >
+                                        {testMode ? "TEST MODE" : "LIVE MODE"}
+                                    </button>
+                                    <div className="h-4 w-[1px] bg-[#333]" />
+                                    <select
+                                        value={mode}
+                                        onChange={(e) => setMode(e.target.value as "single" | "orchestrator")}
+                                        className="bg-transparent text-[#86868b] text-xs font-medium focus:outline-none cursor-pointer hover:text-white transition-colors"
+                                    >
+                                        <option value="single">Single Agent</option>
+                                        <option value="orchestrator">Agent Swarm</option>
+                                    </select>
+                                </div>
+
+                                <button
+                                    onClick={handleStart}
+                                    disabled={!task.trim()}
+                                    className={cn(
+                                        "px-8 py-3 rounded-full text-xs font-medium tracking-widest uppercase transition-all duration-500 flex items-center gap-2",
+                                        !task.trim()
+                                            ? "bg-[#1d1d1f] text-[#333] cursor-not-allowed"
+                                            : "bg-white text-black hover:bg-[#e5e5e5] hover:scale-105"
+                                    )}
+                                >
+                                    <Play className="w-3 h-3 fill-current" />
+                                    <span>Start Research</span>
+                                </button>
                             </div>
                         </div>
-                    )}
-                    
-                    <div ref={bottomRef} />
-                </div>
+                    </div>
+                )}
+
+                {/* Timeline Rendering */}
+                {orchestrator.timeline.map((item, index) => {
+                    if (item.type === "thought") {
+                        return (
+                            <div key={index} className="w-full animate-in fade-in slide-in-from-bottom-8 duration-700">
+                                <div className="pl-6 border-l border-[#333] py-2">
+                                    <span className="block text-[10px] font-medium text-[#424245] uppercase tracking-widest mb-3">
+                                        Orchestrator
+                                    </span>
+                                    <p className="text-xl md:text-2xl font-light text-[#d1d1d6] leading-relaxed whitespace-pre-wrap">
+                                        {item.content}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    } else if (item.type === "agents") {
+                        return (
+                            <div key={index} className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-[1px] w-8 bg-[#333]" />
+                                    <span className="text-[10px] font-medium text-[#424245] uppercase tracking-widest">
+                                        Parallel Execution
+                                    </span>
+                                    <div className="h-[1px] flex-1 bg-[#333]" />
+                                </div>
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                    {item.agentIds.map((agentId) => {
+                                        const agent = agents[agentId];
+                                        if (!agent) return null;
+                                        return (
+                                            <div key={agentId} className="h-[600px]">
+                                                <AgentNotebook agent={agent} />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    } else if (item.type === "paper") {
+                        return <ResearchPaper key={index} content={item.content} />;
+                    }
+                    return null;
+                })}
+                
+                {/* Running Indicator at Bottom */}
+                {isRunning && orchestrator.timeline.length > 0 && (
+                    <div className="flex justify-center py-12">
+                        <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-[#1d1d1f] border border-[#333]">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] font-medium text-[#86868b] uppercase tracking-widest">
+                                Orchestrating
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                <div ref={bottomRef} className="h-10" />
             </div>
         </div>
       </main>
+
+      {/* Minimal Fixed Header (Only visible when running) */}
+      {isRunning && (
+          <div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-x" />
+      )}
     </div>
   );
 }
