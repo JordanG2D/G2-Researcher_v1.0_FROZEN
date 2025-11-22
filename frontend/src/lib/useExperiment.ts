@@ -32,7 +32,7 @@ export interface AgentState {
 export type TimelineItem =
     | { type: "thought"; content: string; timestamp: number }
     | { type: "agents"; agentIds: string[]; timestamp: number }
-    | { type: "paper"; content: string; timestamp: number };
+    | { type: "paper"; content: string; charts?: ChartSpec[]; timestamp: number };
 
 export interface OrchestratorState {
     status: "idle" | "planning" | "running" | "completed";
@@ -483,12 +483,38 @@ export function useExperiment() {
                 break;
 
             case "ORCH_PAPER":
+                // Capture any charts that agents have produced so we can surface them alongside the paper.
+                const charts: ChartSpec[] = Object.values(agentsRef.current)
+                    .flatMap((agent) => (agent.insights || []).map((insight) => insight.chart))
+                    .filter(Boolean) as ChartSpec[];
+
+                // Deduplicate loosely by title + type + first series name + length of labels.
+                const seen = new Set<string>();
+                const uniqueCharts: ChartSpec[] = [];
+                for (const chart of charts) {
+                    const key = [
+                        chart.title || "untitled",
+                        chart.type,
+                        chart.series?.[0]?.name || "series",
+                        chart.labels?.length || 0,
+                        chart.series?.[0]?.values?.length || 0,
+                    ].join("|");
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    uniqueCharts.push(chart);
+                }
+
                 setOrchestrator((prev) => ({
                     ...prev,
                     timeline: [
                         ...prev.timeline,
-                        { type: "paper", content: data.content, timestamp: Date.now() }
-                    ]
+                        {
+                            type: "paper",
+                            content: data.content,
+                            charts: uniqueCharts.slice(0, 6), // keep it concise
+                            timestamp: Date.now(),
+                        },
+                    ],
                 }));
                 break;
 

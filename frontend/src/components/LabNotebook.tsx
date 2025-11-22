@@ -226,7 +226,7 @@ export function LabNotebook() {
                                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                                 transition={{ duration: 0.8, ease: "easeOut" }}
                             >
-                                <ResearchPaper content={item.content} />
+                                <ResearchPaper content={item.content} charts={item.charts} />
                             </motion.div>
                         );
                     }

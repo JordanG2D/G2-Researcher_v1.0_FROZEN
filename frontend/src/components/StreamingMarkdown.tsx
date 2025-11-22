@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -6,50 +6,66 @@ import { cn } from "@/lib/utils";
 interface StreamingMarkdownProps {
     content: string;
     /**
-     * Optional stable key to decide when to trigger the entry animation.
-     * Use the thought/step id so streaming updates don't re-trigger the fade.
+     * A key that identifies a logical block of streaming content.
+     * When this changes (e.g. new thought / new cell), we restart the animation.
      */
     animateKey?: string | number;
-    wrapperClassName?: string;
+    /**
+     * Tailwind / CSS classes applied to the markdown body wrapper.
+     */
     markdownClassName?: string;
+    /**
+     * Optional classes for the outer container (animation wrapper).
+     */
+    wrapperClassName?: string;
 }
 
 /**
- * Markdown block that lightly fades in whenever its content changes.
- * This keeps streamed tokens feeling alive without re-mounting the whole row.
+ * StreamingMarkdown
+ *
+ * Renders markdown that is being updated incrementally (streamed tokens).
+ * Every time the content changes, we softly re-trigger a fade-in animation
+ * on the entire block using the global `.stream-fade` styles.
+ *
+ * This keeps the effect subtle but ensures *all* new streamed chunks
+ * participate in the animation, not just the initial thought.
  */
-export function StreamingMarkdown({ content, animateKey, wrapperClassName, markdownClassName }: StreamingMarkdownProps) {
-    const [isUpdating, setIsUpdating] = useState(false);
-    const key = animateKey ?? content;
-    const animatedRef = useRef(false);
-    const prevKeyRef = useRef<string | number | null>(null);
-    const prevContentRef = useRef<string>("");
+export function StreamingMarkdown({
+    content,
+    animateKey,
+    markdownClassName,
+    wrapperClassName,
+}: StreamingMarkdownProps) {
+    const [isAnimating, setIsAnimating] = useState(false);
 
     useEffect(() => {
-        const keyChanged = prevKeyRef.current !== key;
-        if (keyChanged) {
-            animatedRef.current = false; // allow animation for new item
-            prevKeyRef.current = key;
-        }
+        if (typeof window === "undefined") return;
 
-        const hadContent = prevContentRef.current.length > 0;
-        const hasContent = content.length > 0;
-        prevContentRef.current = content;
+        let timeoutId: number | null = null;
+        const rafId = window.requestAnimationFrame(() => {
+            setIsAnimating(true);
+            timeoutId = window.setTimeout(() => setIsAnimating(false), 420); // match CSS duration
+        });
 
-        // Trigger once when a new item receives its first content.
-        if (!animatedRef.current && hasContent && !hadContent) {
-            animatedRef.current = true;
-            setIsUpdating(true);
-            const timeout = window.setTimeout(() => setIsUpdating(false), 420);
-            return () => window.clearTimeout(timeout);
-        }
-    }, [key, content]);
+        return () => {
+            window.cancelAnimationFrame(rafId);
+            if (timeoutId !== null) window.clearTimeout(timeoutId);
+        };
+    }, [content, animateKey]);
 
     return (
-        <div className={cn("stream-fade", isUpdating && "stream-fade--active", wrapperClassName, markdownClassName)}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content}
-            </ReactMarkdown>
+        <div
+            className={cn(
+                "stream-fade",
+                isAnimating && "stream-fade--active",
+                wrapperClassName
+            )}
+        >
+            <div className={markdownClassName}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {content}
+                </ReactMarkdown>
+            </div>
         </div>
     );
 }
