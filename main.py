@@ -1,3 +1,4 @@
+import os
 import sys
 import argparse
 from dotenv import load_dotenv
@@ -9,6 +10,16 @@ from logger import print_status
 def main():
     # Load environment variables from .env file
     load_dotenv()
+
+    # Debug: show which credentials are available
+    import sys
+    google_key = os.environ.get("GOOGLE_API_KEY", "")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    modal_id = os.environ.get("MODAL_TOKEN_ID", "")
+    modal_secret = os.environ.get("MODAL_TOKEN_SECRET", "")
+    print(f"[DEBUG] Credentials check: GOOGLE_API_KEY={'set' if google_key else 'missing'} (len={len(google_key)}), "
+          f"ANTHROPIC_API_KEY={'set' if anthropic_key else 'missing'}, "
+          f"MODAL_TOKEN={'set' if modal_id and modal_secret else 'missing'}", file=sys.stderr)
 
     parser = argparse.ArgumentParser(
         description="AI Experiment Agent CLI (single-agent and orchestrator modes)"

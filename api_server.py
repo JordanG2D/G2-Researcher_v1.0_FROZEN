@@ -529,12 +529,18 @@ def _stream_subprocess(
     if credentials:
         if credentials.google_api_key:
             env["GOOGLE_API_KEY"] = credentials.google_api_key
+            print(f"[DEBUG] Set GOOGLE_API_KEY from request (len={len(credentials.google_api_key)})", file=sys.stderr)
         if credentials.anthropic_api_key:
             env["ANTHROPIC_API_KEY"] = credentials.anthropic_api_key
+            print(f"[DEBUG] Set ANTHROPIC_API_KEY from request (len={len(credentials.anthropic_api_key)})", file=sys.stderr)
         if credentials.modal_token_id:
             env["MODAL_TOKEN_ID"] = credentials.modal_token_id
+            print(f"[DEBUG] Set MODAL_TOKEN_ID from request (len={len(credentials.modal_token_id)})", file=sys.stderr)
         if credentials.modal_token_secret:
             env["MODAL_TOKEN_SECRET"] = credentials.modal_token_secret
+            print(f"[DEBUG] Set MODAL_TOKEN_SECRET from request (len={len(credentials.modal_token_secret)})", file=sys.stderr)
+    else:
+        print("[DEBUG] No credentials in request, using environment", file=sys.stderr)
 
     proc = subprocess.Popen(
         cmd,

@@ -310,15 +310,34 @@ export function useExperiment() {
 
                     // Check for subprocess completion with error
                     if (event.type === "summary" && event.exit_code !== 0) {
-                        // Find any error messages from stderr in recent logs
+                        // Find any error messages from recent logs (check both stderr and stdout for tracebacks)
                         setLogs((prevLogs) => {
+                            // Look for stderr first
                             const recentStderr = prevLogs
                                 .filter((l) => l.stream === "stderr" && l.plain)
+                                .slice(-10)
+                                .map((l) => l.plain?.trim())
+                                .filter(Boolean)
+                                .join("\n");
+
+                            // Also check stdout for error-like content (tracebacks, Fatal Error, etc.)
+                            const recentStdout = prevLogs
+                                .filter((l) => l.stream === "stdout" && l.plain &&
+                                    (l.plain.includes("Error") || l.plain.includes("Traceback") || l.plain.includes("Exception")))
+                                .slice(-10)
+                                .map((l) => l.plain?.trim())
+                                .filter(Boolean)
+                                .join("\n");
+
+                            // If no specific error found, show last few lines of any output
+                            const anyOutput = prevLogs
+                                .filter((l) => l.type === "line" && l.plain)
                                 .slice(-5)
                                 .map((l) => l.plain?.trim())
                                 .filter(Boolean)
                                 .join("\n");
-                            const errorMsg = recentStderr || `Process exited with code ${event.exit_code}`;
+
+                            const errorMsg = recentStderr || recentStdout || anyOutput || `Process exited with code ${event.exit_code}. No output captured.`;
                             setError(errorMsg);
                             return prevLogs;
                         });
