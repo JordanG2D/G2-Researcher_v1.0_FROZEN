@@ -1,28 +1,25 @@
-# G2-Researcher v1.0 — AGENT_B (Variant #1)
+# G2-Researcher v1.0 — FROZEN (Baseline Archive)
 
-**Status:** Variant Engine  
-**Created:** Cloned from DEV on Nov 29, 2025  
+**Status:** Immutable Snapshot  
+**Created:** Nov 29, 2025  
 **Location:** Black Box Lab – G2 Dynamics
 
-AGENT_B is the **first specialized fork** of the G2 Researcher system.
+This repository contains the **frozen, untouched baseline** of the G2 Researcher v1.0 engine.
 
 ### Purpose
-This agent will focus on:
-- **Quantitative Analysis**
-- **Line movement tracking**
-- **Pattern recognition**
-- **High-frequency hypothesis cycling**
+- Serve as the **canonical reference point** for all future development.
+- Provide a clean, verified, dry-run-passing snapshot.
+- Allow safe forking into DEV and variant branches without risk of contamination.
 
-This variant will become a **quant-heavy explorer**, optimized for:
-- Statistical reasoning  
-- Multi-run experiment batching  
-- EV modeling foundations  
+### What’s Inside
+- Stable agent orchestration
+- Patched tool-calling logic
+- Clean logging and panel output
+- Verified dry-run behavior
 
-### Variant Direction
-AGENT_B inherits the DEV improvements, then evolves toward:
-- Faster reasoning  
-- Superior numerical stability  
-- Efficient multi-experiment loops  
+### Rules
+- **Do not modify this repo.**  
+- All new variants must fork from this version.
 
 ### Notes
-This is the engine that will help power the early quant workflows inside Black Box Lab.
+This snapshot marks the official birth of the G2D Autonomous Researcher system.
