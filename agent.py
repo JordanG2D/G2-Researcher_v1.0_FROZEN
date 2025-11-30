@@ -265,54 +265,53 @@ Working loop:
    the hypothesis, write a short natural-language conclusion and then a
    final line that contains only `[DONE]`.
 """
-
-
-def run_experiment_loop(hypothesis: str, test_mode: bool = False, model: str = "gemini-3-pro-preview"):
-    """Main agent loop using Gemini 3 Pro or Claude Opus 4.5 with thinking + manual tool calling."""
-    gpu_hint = _selected_gpu or "CPU"
-
+def run_experiment_loop(
+    hypothesis: str,
+    test_mode: bool = False,
+    model: str = "gemini-3-pro-preview",
+    gpu_hint: str = "CPU",
+) -> str:
+    """
+    Main agent loop using Gemini 3 Pro or Claude Opus / Claude 3.5 Sonnet.
+    """
     print_panel(f"Hypothesis: {hypothesis}", "Starting Experiment", "bold green")
-    log_step("START", f"Hypothesis: {hypothesis}")
-    print_status(f"Sandbox GPU request: {gpu_hint}", "info")
-    print_status(f"Model: {model}", "info")
+    print_status("START", f"Hypothesis: {hypothesis}", "info")
+    print_status("Sandbox GPU request", gpu_hint, "info")
+    print_status("Model", model, "info")
 
+    # ---------- TEST MODE (no real LLM calls) ----------
     if test_mode:
-        print_status("TEST MODE ENABLED: Using mock data and skipping LLM calls.", "bold yellow")
         import time
-        
-        # Mock Agent Loop
-        
-        # Step 1: Thinking
+
+        # Step 1: Fake "thinking"
         thought = (
-            "I need to verify this hypothesis using a Python script.\n"
-            "I will create a synthetic dataset and run a simple regression model.\n"
-            "Then I will analyze the coefficients to check the relationship."
+            "Step 1: Thinking...\n"
+            "We will test this hypothesis using a Python script.\n"
+            "Then I will analyze the coefficients to check the relationship.\n"
         )
         print_panel(thought, "Agent Thinking", "thought")
-        log_step("THOUGHT", thought)
         emit_event("AGENT_THOUGHT", {"thought": thought})
         time.sleep(1.5)
-        
-        # Step 2: Tool Call
+
+        # Step 2: Tool call (mocked)
         code = (
             "import numpy as np\n"
             "import pandas as pd\n"
             "print('Generating synthetic data...')\n"
             "data = pd.DataFrame({'x': np.random.rand(100), 'y': np.random.rand(100)})\n"
             "print('Data shape:', data.shape)\n"
-            "print('Correlation:', data.corr().iloc[0,1])"
+            "print('Correlation:', data.corr().iloc[0,1])\n"
         )
         fn_name = "execute_in_sandbox"
         fn_args = {"code": code}
-        
         print_panel(f"{fn_name}({fn_args})", "Tool Call", "code")
-        log_step("TOOL_CALL", f"{fn_name}({fn_args})")
+        log_step("TOOL_CALL", {"fn_name": fn_name, "fn_args": fn_args})
         emit_event("AGENT_TOOL", {"tool": fn_name, "args": fn_args})
-        time.sleep(1)
-        
-        # Step 3: Tool Result
+        time.sleep(1.0)
+
+        # Step 3: Tool result (mocked)
         result = (
-            "Exit Code: 0\n"
+            "Exit code: 0\n"
             "STDOUT:\n"
             "Generating synthetic data...\n"
             "Data shape: (100, 2)\n"
@@ -320,45 +319,52 @@ def run_experiment_loop(hypothesis: str, test_mode: bool = False, model: str = "
             "STDERR:\n"
         )
         print_panel(result, "Tool Result", "result")
-        log_step("TOOL_RESULT", "Executed")
+        log_step("TOOL_RESULT", {"result": result})
         emit_event("AGENT_TOOL_RESULT", {"tool": fn_name, "result": result})
         time.sleep(1.5)
-        
+
         # Step 4: Analysis
         message = (
             "The correlation is very low, which suggests no strong linear relationship.\n"
-            "However, since this is mock data, I will conclude based on the hypothesis."
+            "However, since this is mock data, I will conclude based on the hypothesis.\n"
         )
         print_panel(message, "Agent Message", "info")
-        log_step("MODEL", message)
-        time.sleep(1)
-        
-        # Step 5: Final Report
+        log_step("MODEL", {"message": message})
+        time.sleep(1.0)
+
+        # Step 5: Final report
         print_status("Generating Final Report...", "bold green")
         final_report = (
             "## Experiment Report\n\n"
-            "We tested the hypothesis: " + hypothesis + "\n\n"
+            "### We tested the hypothesis: " + hypothesis + "\n\n"
             "### Methodology\n"
             "We ran a simulation using synthetic data.\n\n"
             "### Conclusion\n"
-            "The hypothesis was tested in a mock environment.\n"
+            "The mock experiment suggests there is no strong linear relationship.\n"
             "[DONE]"
         )
-        print_panel(final_report, "Final Report", "bold green")
-        return
+        return final_report
 
-    # Branch based on model selection
-    if model == "claude-opus-4-5":
-        _run_claude_experiment_loop(hypothesis, gpu_hint)
+    # ---------- REAL RUN: route by model ----------
+    if model in ("claude-opus-4-5", "claude-3-5-sonnet"):
+        # Use Claude stack (Opus or Sonnet), model flag is passed down
+        return _run_claude_experiment_loop(hypothesis, gpu_hint, model)
     else:
-        _run_gemini_experiment_loop(hypothesis, gpu_hint)
+        # Default: Gemini path (or any future Google model)
+        return _run_gemini_experiment_loop(hypothesis, gpu_hint)
 
-
-def _run_claude_experiment_loop(hypothesis: str, gpu_hint: str):
+def _run_claude_experiment_loop(hypothesis: str, gpu_hint: str, model: str):
     """Run the experiment loop using Claude Opus 4.5 with extended thinking."""
     print_status("Claude extended thinking enabled", "info")
 
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+      # Map CLI model flag to Anthropic model ID
+    if model == "claude-3-5-sonnet":
+        anthropic_model = "claude-3-5-sonnet-20241022"  # Sonnet 3.5
+    elif model == "claude-opus-4-5":
+        anthropic_model = "claude-opus-4-5-20251101"    # Opus 4.5
+    else:
+        anthropic_model = model  # fallback if we ever pass a raw Anthropic ID
     system_prompt = _build_system_prompt(gpu_hint)
     tool_def = _build_claude_tool_definition()
 
@@ -380,7 +386,7 @@ def _run_claude_experiment_loop(hypothesis: str, gpu_hint: str):
             tool_use_blocks = []
 
             with client.messages.stream(
-                model="claude-opus-4-5-20251101",
+                model=anthropic_model,
                 max_tokens=16000,
                 thinking={
                     "type": "enabled",
@@ -578,22 +584,21 @@ def _run_claude_experiment_loop(hypothesis: str, gpu_hint: str):
         _close_shared_sandbox()
 
 
-def _run_gemini_experiment_loop(hypothesis: str, gpu_hint: str):
-    """Run the experiment loop using Gemini 3 Pro with thinking mode."""
-    print_status("Gemini thinking: HIGH (thought summaries visible)", "info")
+    def _run_gemini_experiment_loop(hypothesis: str, gpu_hint: str):
+        """Run the experiment loop using Gemini 3 Pro with thinking mode."""
+        print_status("Gemini thinking: HIGH (thought summaries visible)", "info")
+        client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
 
-    client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
+       # Expose the sandbox executor as a tool.
+        tools = [execute_in_sandbox]
+        system_prompt = _build_system_prompt(gpu_hint)
 
-    # Expose the sandbox executor as a tool.
-    tools = [execute_in_sandbox]
-    system_prompt = _build_system_prompt(gpu_hint)
-
-    # Initial conversation: just the hypothesis as a user message.
-    history: List[types.Content] = [
-        types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=f"Hypothesis: {hypothesis}")],
-        )
+       # Initial conversation: just the hypothesis as a user message.
+        history: List[types.Content] = [
+          types.Content(
+              role="user",
+              parts=[types.Part.from_text(text=f"Hypothesis: {hypothesis}")],
+       )
     ]
 
     max_steps = 10

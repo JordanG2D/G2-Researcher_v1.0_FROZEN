@@ -44,6 +44,11 @@ def print_panel(content, title, style="info"):
     """Prints a rich panel to the console."""
     console.print(Panel(content, title=title, border_style=style, expand=False))
 
-def print_status(message, style="info"):
+def print_status(label, message=None, style="info"):
     """Prints a status message."""
-    console.print(f"[{style}]{message}[/{style}]")
+    if message is None:
+        text = label
+    else:
+        text = f"{label}: {message}"
+    console.print(f"[{style}]{text}[/{style}]")
+

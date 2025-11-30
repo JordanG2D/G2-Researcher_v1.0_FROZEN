@@ -2,8 +2,7 @@ import os
 import sys
 import argparse
 from dotenv import load_dotenv
-
-from agent import run_experiment_loop
+from agent  import run_experiment_loop
 from logger import print_status
 
 
@@ -75,19 +74,27 @@ def main():
         action="store_true",
         help="Run in test mode with mock data (no LLM/GPU usage).",
     )
+ 
+       # Model selector
+    MODEL_CHOICES = [
+        "gemini-3-pro-preview",
+        "claude-opus-4.5",
+        "claude-3.5-sonnet",
+    ]
+
     parser.add_argument(
         "--model",
         type=str,
-        choices=["gemini-3-pro-preview", "claude-opus-4-5"],
+        choices=MODEL_CHOICES,
         default="gemini-3-pro-preview",
         help=(
             "LLM model to use: "
-            "'gemini-3-pro-preview' (default) or 'claude-opus-4-5'."
+            "'gemini-3-pro-preview' (default), 'claude-opus-4.5', or "
+            "'claude-3.5-sonnet'."
         ),
     )
 
     args = parser.parse_args()
-
     # Preserve existing behavior by default: single agent mode.
     if args.mode == "single":
         print_status("Initializing Single Researcher Agent...", "bold cyan")
